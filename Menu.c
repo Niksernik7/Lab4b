@@ -178,7 +178,6 @@ void AddNode(Tree* tree) {
     if (!Insert(tree, key, data)) {
         printf("The elem with this key exists\n");
     }
-    free(key);
 }
 
 void FindInTree(Tree* tree, size_t mod) {

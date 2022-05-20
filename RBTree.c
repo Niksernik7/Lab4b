@@ -17,7 +17,7 @@ bool Insert(Tree *tree, const char *key, size_t data) {
     if (tree->root == NULL) {
         tree->root = InsertNode(tree->root, newNode);
         tree->root->color = black;
-        tree->size = 0;
+        tree->size = 1;
     } else {
         InsertNode(tree->root, newNode);
         tree->size++;
@@ -82,10 +82,14 @@ Node *GetSibiling(Node *currentNode) {
 
     if (currentNode->parent->left == currentNode) {
         return currentNode->parent->right;
+    } else if(currentNode->parent->right == currentNode) {
+        return currentNode->parent->left;
     }
 
-    return currentNode->parent->right;
+    return NULL;
 }
+
+
 
 Node *GetGrandpa(Node *currentNode) {
     if (!currentNode->parent || !currentNode->parent->parent) {
@@ -129,6 +133,9 @@ Node* InsertNode(Node *currentNode, Node *nodeToInsert) {
 
 void RightRotate(Tree *tree, Node *temp) {
     Node *left = temp->left;
+    if(!left) {
+        return;
+    }
     temp->right = left->right;
     if (temp->left) {
         temp->left->parent = temp;
@@ -149,6 +156,9 @@ void RightRotate(Tree *tree, Node *temp) {
 
 void LeftRotate(Tree *tree, Node *temp) {
     Node *right = temp->right;
+    if(!right) {
+        return;
+    }
     temp->right = right->left;
     if (temp->right) {
         temp->right->parent = temp;
@@ -259,10 +269,12 @@ bool DeleteByKey(Tree *tree, char *key) {
 
         SwapValues(currentNode, nodeToDelete);
 
-        if (currentNode != nodeToDelete->right) {
-            currentNode->parent->left = NULL;
-        } else {
-            currentNode->parent->right = NULL;
+        if(nodeToDelete->parent) {
+            if (currentNode != nodeToDelete->right) {
+                currentNode->parent->left = NULL;
+            } else {
+                currentNode->parent->right = NULL;
+            }
         }
 
         free(currentNode);
@@ -283,10 +295,12 @@ bool DeleteByKey(Tree *tree, char *key) {
         }
     } else {
 
-        if (nodeToDelete->parent->left == nodeToDelete) {
-            nodeToDelete->parent->left = NULL;
-        } else {
-            nodeToDelete->parent->right = NULL;
+        if(nodeToDelete->parent) {
+            if (nodeToDelete->parent->left == nodeToDelete) {
+                nodeToDelete->parent->left = NULL;
+            } else {
+                nodeToDelete->parent->right = NULL;
+            }
         }
 
         free(nodeToDelete);
@@ -297,7 +311,9 @@ bool DeleteByKey(Tree *tree, char *key) {
     }
 
     tree->size--;
-
+    if(tree->size == 0) {
+        tree->root = NULL;
+    }
     return true;
 
 }
