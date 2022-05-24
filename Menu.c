@@ -61,20 +61,7 @@ void printNode(const Node* i) {
 }
 
 
-//void printTree(const Tree* t) {
-//    char* str = NULL;
-//    if (t != NULL) {
-//        str = TransformTableString(t);
-//    } else {
-//        printf("Doesn't exist\n");
-//        return;
-//    }
-//    printf("Output\n");
-//    if (str != NULL) {
-//        printf("%s\n", str);
-//        free(str);
-//    } else printf("Table is empty\n");
-//}
+
 
 int GetInt() {
     char* str = "Doesn't number!\n : ";
@@ -241,7 +228,7 @@ void PrintGV(Tree* tree){
         return;
     }
     fprintf(f, "digraph Tree {\n");
-    WalkTree(tree->root, GenerateGV, f);
+    WalkTree(tree->root, GenerateGV, f, 0, 1);
     fprintf(f, "}\n");
     fclose(f);
 

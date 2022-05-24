@@ -7,6 +7,18 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+//typedef struct Item {
+//    int number;
+//    const char *key;
+//    size_t data;
+//    struct Item* next;
+//} Item;
+//
+//typedef struct List {
+//    Item *head;
+//    int Size;
+//} List;
+
 enum color {
     black = 0,
     red = 1
@@ -15,6 +27,7 @@ enum color {
 typedef struct Node {
     const char *key;
     size_t data;
+    //struct List* list;
     enum color color;
     struct Node *right;
     struct Node *left;
@@ -26,26 +39,29 @@ typedef struct Tree {
     size_t size;
 } Tree;
 
-bool Insert(Tree *tree, const char *key, size_t data);
-Node *InsertNode(Node *currentNode, Node *nodeToInsert);
-bool DeleteByKey(Tree *tree, char *key);
-Node *Find(Tree *, const char *);
-Node *FindNode(Node *currentNode, const char *key);
-void WalkTree(Node* node, void (*cb)(Node *node, void *arg), void *arg);
 
-void ValidateNode(Tree *tree, Node *currentNode);
-void ValidateAfterDelete(Tree *tree, Node *currentNode);
-void SwapValues(Node *first, Node *second);
-Node *GetGrandpa(Node *currentNode);
-Node *GetUncle(Node *currentNode);
-void RightRotate(Tree *tree, Node *temp);
-void LeftRotate(Tree *tree, Node *temp);
+bool Insert(Tree*, const char*, size_t);
+Node *InsertNode(Node*, Node*);
+bool DeleteByKey(Tree*, char*);
+void DeleteNode(Tree*, Node*);
+Node *Find(Tree*, const char*);
+Node *FindNode(Node*, const char*);
+void WalkTree(Node*, void (*cb)(Node*, void*), void*, bool, bool);
 
-char* get_str(const Node* item);
+void ValidateNode(Tree*, Node*);
+void ValidateAfterDelete(Tree*, Node*);
+void SwapValues(Node*, Node*);
+Node *GetBrother(Node*);
+Node *GetGrandpa(Node*);
+Node *GetUncle(Node*);
+void RightRotate(Tree*, Node*);
+void LeftRotate(Tree*, Node*);
+
+char* get_str(const Node*);
 void FreeTree(Tree*);
 
 
 
-Node* FindMinElemGreaterThen(Node* node, char* key, void* res);
+Node* FindMinElemGreaterThen(Node*, char*, void*);
 
-#endif //RBTREE_RBTREE_H
+#endif
