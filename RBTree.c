@@ -1,89 +1,91 @@
 #include <assert.h>
 #include "RBTree.h"
 
-//bool Insert(Tree* tree, const char* key, size_t data){
-//    size_t len = strlen(key) + 1;
-//    if (tree == NULL)
-//        return false;
-//    int i;
-//    Node* ptr = NULL;
-//    for (Node* ptrnext = tree->root; ptrnext; ) {
-//        ptr = ptrnext;
-//        i = strcmp(ptr->list->head->key, key);
-//        if (i < 0) {
-//            ptrnext = ptr->right;
-//            continue;
-//        }
-//        if (i > 0) {
-//            ptrnext = ptr->left;
-//            continue;
-//        }
-//        if (i == 0) {
-//            Item* cur = ptr->list->head;
-//            int j = 1;
-//            do {
-//                if (cur->next == NULL){
-//                    Item* newElem = calloc(1, sizeof(Item));
-//                    newElem->data = data;
-//                    newElem->key = calloc(len, 1);
-//                    strcpy(newElem->key, key);
-//                    newElem->number = j;
-//                    cur->next = newElem;
-//                    break;
-//                }
-//            j++;
-//            cur = cur->next;
-//            } while(1);
-//            return true; //эл с таким ключом есть
-//        }
-//    }
-//    Node* newNode = calloc(1, sizeof(Node));
-//    newNode->list->head->key = calloc(len, 1);
-//    strcpy(newNode->list->head->key, key);
-//    newNode->list->head->data = data;
-//    newNode->list->head->number = 1;
-//    newNode->parent = ptr;
-//    newNode->color = red;
-//    if (ptr == NULL) {
-//        // tree was empty
-//        tree->root = newNode;
-//        tree->root->color = black;
-//    }
-//    else
-//    {
-//        if (i < 0)
-//            ptr->right = newNode;
-//        else
-//            ptr->left = newNode;
-//    }
-//    tree->size++;
-//    ValidateNode(tree, newNode);
-//    return true;
-//}
-
-
-bool Insert(Tree *tree, const char *key, size_t data) {
-    if (tree == NULL) {
+bool Insert(Tree* tree, const char* key, size_t data){
+    int len = strlen(key) + 1;
+    if (tree == NULL)
         return false;
+    int i;
+    Node* ptr = NULL;
+    for (Node* ptrnext = tree->root; ptrnext; ) {
+        ptr = ptrnext;
+        i = strcmp(ptr->list->head->key, key);
+        if (i < 0) {
+            ptrnext = ptr->right;
+            continue;
+        }
+        if (i > 0) {
+            ptrnext = ptr->left;
+            continue;
+        }
+        if (i == 0) {
+            Item* cur = ptr->list->head;
+            int j = 1;
+            do {
+                j++;
+                if (cur->next == NULL){
+                    Item* newElem = calloc(1, sizeof(Item));
+                    newElem->data = data;
+                    newElem->key = calloc(len, 1);
+                    strcpy(newElem->key, key);
+                    newElem->number = j;
+                    cur->next = newElem;
+                    break;
+                }
+            cur = cur->next;
+            } while(1);
+            return true; //эл с таким ключом есть
+        }
     }
     Node* newNode = calloc(1, sizeof(Node));
-    newNode->data = data;
-    newNode->key = strdup(key);
-    newNode->right = NULL;
-    newNode->left = NULL;
-    newNode->parent = NULL;
+    newNode->list = calloc(1, sizeof(List));
+    newNode->list->head = calloc(1, sizeof(Item));
+    newNode->list->head->key = calloc(len,1);
+    strcpy(newNode->list->head->key, key);
+    newNode->list->head->data = data;
+    newNode->list->head->number = 1;
+    newNode->parent = ptr;
     newNode->color = red;
-    if (tree->root == NULL) {
-        tree->root = InsertNode(tree->root, newNode);
+    if (ptr == NULL) {
+        // tree was empty
+        tree->root = newNode;
         tree->root->color = black;
-        tree->size = 1;
-    } else {
-        InsertNode(tree->root, newNode);
-        tree->size++;
     }
+    else
+    {
+        if (i < 0)
+            ptr->right = newNode;
+        else
+            ptr->left = newNode;
+    }
+    tree->size++;
     ValidateNode(tree, newNode);
     return true;
 }
+
+
+//bool Insert(Tree *tree, const char *key, size_t data) {
+//    if (tree == NULL) {
+//        return false;
+//    }
+//    Node* newNode = calloc(1, sizeof(Node));
+//    newNode->data = data;
+//    newNode->key = strdup(key);
+//    newNode->right = NULL;
+//    newNode->left = NULL;
+//    newNode->parent = NULL;
+//    newNode->color = red;
+//    if (tree->root == NULL) {
+//        tree->root = InsertNode(tree->root, newNode);
+//        tree->root->color = black;
+//        tree->size = 1;
+//    } else {
+//        InsertNode(tree->root, newNode);
+//        tree->size++;
+//    }
+//    ValidateNode(tree, newNode);
+//    return true;
+//}
 
 void CheckRotate(Node* node, void* arg){
     if (node->parent == NULL)
@@ -163,19 +165,19 @@ Node *GetUncle(Node *currentNode) {
     return temp->right;
 }
 
-Node* InsertNode(Node *currentNode, Node *nodeToInsert) {
-    if (currentNode == NULL) {
-        return nodeToInsert;
-    }
-    if (strcmp(nodeToInsert->key, currentNode->key) < 0) {
-        currentNode->left = InsertNode(currentNode->left, nodeToInsert);
-        currentNode->left->parent = currentNode;
-    } else {
-        currentNode->right = InsertNode(currentNode->right, nodeToInsert);
-        currentNode->right->parent = currentNode;
-    }
-    return currentNode;
-}
+//Node* InsertNode(Node *currentNode, Node *nodeToInsert) {
+//    if (currentNode == NULL) {
+//        return nodeToInsert;
+//    }
+//    if (strcmp(nodeToInsert->key, currentNode->key) < 0) {
+//        currentNode->left = InsertNode(currentNode->left, nodeToInsert);
+//        currentNode->left->parent = currentNode;
+//    } else {
+//        currentNode->right = InsertNode(currentNode->right, nodeToInsert);
+//        currentNode->right->parent = currentNode;
+//    }
+//    return currentNode;
+//}
 
 void RightRotate(Tree *tree, Node *temp) {
     if(!temp) {
@@ -228,13 +230,16 @@ void LeftRotate(Tree *tree, Node *temp) {
 }
 
 Node *FindNode(Node *currentNode, const char *key) {
+    if (!key) {
+        return NULL;
+    }
     if (currentNode == NULL) {
         return NULL;
     }
-    if (strcmp(currentNode->key, key) == 0) {
+    if (strcmp(currentNode->list->head->key, key) == 0) {
         return currentNode;
     }
-    if (strlen(key) < strlen(currentNode->key)) {
+    if (strcmp(key, currentNode->list->head->key) < 0) {
         currentNode = FindNode(currentNode->left, key);
     } else {
         currentNode = FindNode(currentNode->right, key);
@@ -243,13 +248,22 @@ Node *FindNode(Node *currentNode, const char *key) {
     return currentNode;
 }
 
-Node *Find(Tree *tree, const char *key) {
+Item *Find(Tree *tree, const char *key, int numofel) {
     if (!key) {
         return NULL;
     }
-
-    return FindNode(tree->root, key);
+    Node* node = FindNode(tree->root,key);
+    Item* res = node->list->head;
+    int n = 1;
+    while(n != numofel){
+        if (res == NULL)
+            return NULL;
+        res = res->next;
+        n++;
+    }
+    return res;
 }
+
 
 void ValidateAfterDelete(Tree *tree, Node *sibiling) {
     if (!sibiling || !tree) {
@@ -300,7 +314,7 @@ void ValidateAfterDelete(Tree *tree, Node *sibiling) {
 }
 
 void DeleteNode(Tree *tree, Node *nodeToDelete) {
-    Node *validationNode = GetBrother(nodeToDelete);
+    Node* validationNode = GetBrother(nodeToDelete);
 
     if (nodeToDelete->left && nodeToDelete->right) {
         // Find max or min and replace
@@ -363,30 +377,40 @@ void DeleteNode(Tree *tree, Node *nodeToDelete) {
     }
 }
 
-bool DeleteByKey(Tree *tree, char *key) {
+bool DeleteByKeyAndNumber(Tree *tree, char *key, int numofel) {
 
-    Node *nodeToDelete = Find(tree, key);
+    Node *nodeToDelete = FindNode(tree, key);
 
     if (!nodeToDelete) {
         return false;
     }
-
-    DeleteNode(tree, nodeToDelete);
-
+    if (nodeToDelete->list->head->next != NULL){
+        Item* cur = nodeToDelete->list->head;
+        for(int n = 1; n != numofel; n++){
+            cur = cur->next;
+        }
+        cur->next->prev = cur->next->prev->prev;
+        cur->prev->next = cur->prev->next->next;
+        free(cur->key);
+        free(cur);
+        int a = 1;
+        Item* newcur = nodeToDelete->list->head;
+        while(newcur != NULL) {
+            newcur->number = a;
+            newcur = newcur->next;
+        }
+        return true;
+    } else {
+        DeleteNode(tree, nodeToDelete);
+    }
     return true;
-
 }
 
 void SwapValues(Node *first, Node *second) {
     Node temp;
-    temp.key = first->key;
-    temp.data = first->data;
-
-    first->key = second->key;
-    first->data = second->data;
-
-    second->key = temp.key;
-    second->data = temp.data;
+    temp.list = first->list;
+    first->list = second->list;
+    second->list = temp.list;
 }
 
 void WalkTree(Node* node, void (*cb)(Node *node, void *arg), void *arg, bool reversed, bool childFirst){
@@ -430,3 +454,12 @@ void FreeTree(Tree *tree) {
     FreeNode(tree->root);
     free(tree);
 }
+
+
+
+
+//написать функцию, которое находит кол-во элементов в узле для использования ее
+// в функции удаления в 305 и т.д.( условие, если элемент один, идем как написано, если же нет, удаляем 1 эл-нт.
+
+//ВСЕГО 4 функции поиска, 1 для удаления,одна универсальная для нахождения узла,
+// третья для нахождения нужного айтема на экран(без специального)

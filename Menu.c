@@ -48,7 +48,7 @@ void ShowMainMenu() {
     printf(" : ");
 }
 
-void printNode(const Node* i) {
+void printNode(const Item* i) {
     char* s;
     if (i != NULL) {
         s = get_str(i);
@@ -139,7 +139,8 @@ void Delete(Tree *tree, int mod) {
                 if(strlen(key) != 0) break;
                 free(key);
             } while (1);
-            if(!DeleteByKey(tree, key))
+            int n = 0;
+            if(!DeleteByKeyAndNumber(tree, key, n))
                 printf("Doesn't exist\n");
             free(key);
             break;
@@ -188,7 +189,14 @@ void FindInTree(Tree* tree, size_t mod) {
             printf("Enter:\n");
             printf(" Key : ");
             char *key = enterString();
-            Node* node = Find(tree, key);
+            printf(" Number: ");
+            int n = GetInt();
+            Item* node = Find(tree, key, n);
+            if (!Find){
+                printf("Doesn't exists!");
+                break;
+            }
+
             free(key);
             printNode(node);
             break;
@@ -198,13 +206,13 @@ void FindInTree(Tree* tree, size_t mod) {
             break;
     }
 }
-char* get_str(const Node* item) {
+char* get_str(const Item* item) {
     if (item == NULL)
         return NULL;
     size_t lenkey = strlen(item->key);
     size_t buflen = lenkey + 3 + 30 + 1;
     char* s = malloc(buflen);
-    snprintf(s, buflen, "%s | %zu", item->key, item->data);
+    snprintf(s, buflen, "%s | %zu | %d", item->key, item->data, item->number);
     return s;
 }
 
@@ -258,16 +266,20 @@ void GenerateGV(Node* node, void* p){      //callback(cb)
     static size_t nullcount = 0;
     if (node->left != NULL){
         fprintf(f, "\"%s: %zu\" -> \"%s: %zu\"\n",
-                node->key, node->data, node->left->key, node->left->data);
+                node->list->head->key, node->list->head->data,
+                node->left->list->head->key, node->left->list->head->data);
     } else {
-        fprintf(f, "\"%s: %zu\" -> \"null%d\"\n", node->key, node->data, nullcount);
+        fprintf(f, "\"%s: %zu\" -> \"null%d\"\n",
+                node->list->head->key, node->list->head->data, nullcount);
         nullcount++;
     }
     if (node->right != NULL){
         fprintf(f, "\"%s: %zu\" -> \"%s: %zu\"\n",
-                node->key, node->data, node->right->key, node->right->data);
+                node->list->head->key, node->list->head->data,
+                node->right->list->head->key, node->right->list->head->data);
     } else {
-        fprintf(f, "\"%s: %zu\" -> \"null%d\"\n", node->key, node->data, nullcount);
+        fprintf(f, "\"%s: %zu\" -> \"null%d\"\n",
+                node->list->head->key, node->list->head->data, nullcount);
         nullcount++;
     }
 }
