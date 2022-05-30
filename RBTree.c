@@ -1,10 +1,18 @@
 #include <assert.h>
+#include <limits.h>
+#include <unistd.h>
+
+#ifdef WIN32
+#include <windows.h>
+#endif
+
 #include "RBTree.h"
 
-bool Insert(Tree* tree, const char* key, size_t data){
+
+int Insert(Tree* tree, const char* key, size_t data){
     int len = strlen(key) + 1;
     if (tree == NULL)
-        return false;
+        return -1;
     int i;
     Node* ptr = NULL;
     for (Node* ptrnext = tree->root; ptrnext; ) {
@@ -19,6 +27,7 @@ bool Insert(Tree* tree, const char* key, size_t data){
             continue;
         }
         if (i == 0) {
+            // элемент с таким ключом есть, добавляем в список
             Item* cur = ptr->list->head;
             int j = 1;
             do {
@@ -30,11 +39,10 @@ bool Insert(Tree* tree, const char* key, size_t data){
                     strcpy(newElem->key, key);
                     newElem->number = j;
                     cur->next = newElem;
-                    break;
+                    return newElem->number;
                 }
-            cur = cur->next;
+                cur = cur->next;
             } while(1);
-            return true; //эл с таким ключом есть
         }
     }
     Node* newNode = calloc(1, sizeof(Node));
@@ -59,8 +67,8 @@ bool Insert(Tree* tree, const char* key, size_t data){
             ptr->left = newNode;
     }
     tree->size++;
-    ValidateNode(tree, newNode);
-    return true;
+    RebalanceOnAdd(tree, newNode);
+    return 1;
 }
 
 
@@ -83,7 +91,7 @@ bool Insert(Tree* tree, const char* key, size_t data){
 //        InsertNode(tree->root, newNode);
 //        tree->size++;
 //    }
-//    ValidateNode(tree, newNode);
+//    RebalanceOnAdd(tree, newNode);
 //    return true;
 //}
 
@@ -94,7 +102,7 @@ void CheckRotate(Node* node, void* arg){
     assert(node->right != node->parent);
 }
 
-void ValidateNode(Tree *tree, Node *currentNode) {
+void RebalanceOnAdd(Tree *tree, Node *currentNode) {
     WalkTree(tree->root, CheckRotate, tree->root, 0, 0);
     if (!currentNode || !currentNode->parent) {
         return;
@@ -132,7 +140,7 @@ void ValidateNode(Tree *tree, Node *currentNode) {
         }
         tree->root->color = black;
     }
-    ValidateNode(tree, GetGrandpa(currentNode)); // Ту же проверку с дедушки
+    RebalanceOnAdd(tree, GetGrandpa(currentNode)); // Ту же проверку с дедушки
 }
 
 Node *GetBrother(Node *currentNode) {
@@ -165,19 +173,6 @@ Node *GetUncle(Node *currentNode) {
     return temp->right;
 }
 
-//Node* InsertNode(Node *currentNode, Node *nodeToInsert) {
-//    if (currentNode == NULL) {
-//        return nodeToInsert;
-//    }
-//    if (strcmp(nodeToInsert->key, currentNode->key) < 0) {
-//        currentNode->left = InsertNode(currentNode->left, nodeToInsert);
-//        currentNode->left->parent = currentNode;
-//    } else {
-//        currentNode->right = InsertNode(currentNode->right, nodeToInsert);
-//        currentNode->right->parent = currentNode;
-//    }
-//    return currentNode;
-//}
 
 void RightRotate(Tree *tree, Node *temp) {
     if(!temp) {
@@ -253,6 +248,8 @@ Item *Find(Tree *tree, const char *key, int numofel) {
         return NULL;
     }
     Node* node = FindNode(tree->root,key);
+    if (node == NULL)
+        return NULL;
     Item* res = node->list->head;
     int n = 1;
     while(n != numofel){
@@ -264,8 +261,11 @@ Item *Find(Tree *tree, const char *key, int numofel) {
     return res;
 }
 
+void RebalanceOnDelete2(Tree *tree, Node *x) {
+    
+}
 
-void ValidateAfterDelete(Tree *tree, Node *sibiling) {
+void RebalanceOnDelete(Tree *tree, Node *sibiling) {
     if (!sibiling || !tree) {
         return;
     }
@@ -288,7 +288,7 @@ void ValidateAfterDelete(Tree *tree, Node *sibiling) {
             sibiling->right->color = red;
             RightRotate(tree, sibiling);
 
-            ValidateAfterDelete(tree, sibiling->parent);
+            RebalanceOnDelete(tree, sibiling->parent);
             return;
         }
         if (sibiling->right->color == black && sibiling->left->color == black) {
@@ -302,7 +302,7 @@ void ValidateAfterDelete(Tree *tree, Node *sibiling) {
                 return;
             }
 
-            ValidateAfterDelete(tree, sibiling->parent);
+            RebalanceOnDelete(tree, sibiling->parent);
 
         }
     } else {
@@ -318,30 +318,48 @@ void DeleteNode(Tree *tree, Node *nodeToDelete) {
 
     if (nodeToDelete->left && nodeToDelete->right) {
         // Find max or min and replace
-        Node *currentNode = nodeToDelete->right;
-        while (currentNode->left) {
-            currentNode = currentNode->left;
+        Node *child = nodeToDelete->right;
+        while (child->left) {
+            child = child->left;
         }
 
-        SwapValues(currentNode, nodeToDelete);
+        SwapValues(child, nodeToDelete);
 
-        if(currentNode->right) {
-            DeleteNode(tree,currentNode);
+        if(child->right) {
+            DeleteNode(tree, child);
             return;
         }
 
-        if(currentNode->parent) {
-            if (currentNode != nodeToDelete->right) {
-                currentNode->parent->left = NULL;
-            } else {
-                currentNode->parent->right = NULL;
-            }
+        if (child != child->parent->right) {
+            child->parent->left = NULL;
+        } else {
+            child->parent->right = NULL;
         }
 
-        free(currentNode);
-
+        if (nodeToDelete->color != child->color) {
+            free(child);
+            goto balanced;
+        }
+        else {
+            // both are black
+            free(child);
+        }
     } else if (nodeToDelete->left || nodeToDelete->right) {
-        if (nodeToDelete->color == black) {
+        Node* child = nodeToDelete->left ? nodeToDelete->left : nodeToDelete->right;
+        if(nodeToDelete->color != child->color) {
+            child->color = black;
+            if (nodeToDelete->parent) {
+                if (nodeToDelete->parent->right == nodeToDelete)
+                    nodeToDelete->parent->right = child;
+                else
+                    nodeToDelete->parent->left = child;
+            }
+            child->parent = nodeToDelete->parent;
+            free(nodeToDelete);
+
+            goto balanced;
+        } else  {
+            // both are black
             if (nodeToDelete->left) {
                 SwapValues(nodeToDelete, nodeToDelete->left);
                 nodeToDelete->left = NULL;
@@ -351,11 +369,8 @@ void DeleteNode(Tree *tree, Node *nodeToDelete) {
                 nodeToDelete->right = NULL;
                 free(nodeToDelete->right);
             }
-
-
         }
     } else {
-
         if(nodeToDelete->parent) {
             if (nodeToDelete->parent->left == nodeToDelete) {
                 nodeToDelete->parent->left = NULL;
@@ -363,14 +378,17 @@ void DeleteNode(Tree *tree, Node *nodeToDelete) {
                 nodeToDelete->parent->right = NULL;
             }
         }
-
+        enum color c = nodeToDelete->color;
         free(nodeToDelete);
+        if (c == red)
+            goto balanced;
     }
 
     if (validationNode != NULL) {
-        ValidateAfterDelete(tree, validationNode);
+        RebalanceOnDelete(tree, validationNode);
     }
 
+balanced:
     tree->size--;
     if(tree->size == 0) {
         tree->root = NULL;
@@ -379,27 +397,34 @@ void DeleteNode(Tree *tree, Node *nodeToDelete) {
 
 bool DeleteByKeyAndNumber(Tree *tree, char *key, int numofel) {
 
-    Node *nodeToDelete = FindNode(tree, key);
+    Node *nodeToDelete = FindNode(tree->root, key);
 
     if (!nodeToDelete) {
         return false;
     }
-    if (nodeToDelete->list->head->next != NULL){
-        Item* cur = nodeToDelete->list->head;
-        for(int n = 1; n != numofel; n++){
+    if (nodeToDelete->list->head->next != NULL) {
+        Item *cur = nodeToDelete->list->head;
+        for (int n = 1; n != numofel; n++) {
             cur = cur->next;
+            if (cur == NULL)
+                return false;
         }
-        cur->next->prev = cur->next->prev->prev;
-        cur->prev->next = cur->prev->next->next;
+        if (cur->next)
+            cur->next->prev = cur->prev;
+        if (cur->prev)
+            cur->prev->next = cur->next;
         free(cur->key);
         free(cur);
         int a = 1;
-        Item* newcur = nodeToDelete->list->head;
-        while(newcur != NULL) {
+        Item *newcur = nodeToDelete->list->head;
+        while (newcur != NULL) {
             newcur->number = a;
             newcur = newcur->next;
         }
         return true;
+
+    } else if (numofel != 1) {
+        return false;
     } else {
         DeleteNode(tree, nodeToDelete);
     }
@@ -456,10 +481,193 @@ void FreeTree(Tree *tree) {
 }
 
 
+Item* SpecialFind(Tree* tree, const char* key, int numofel) {
+    if (tree->root == NULL)
+        return NULL;
+    Node* MaxNode = FindMax(tree);
+    Node* MinNode = FindMin(tree);
+    size_t maxlen = strlen(MaxNode->list->head->key);
+    size_t minlen = strlen(MinNode->list->head->key);
+    size_t curlen = strlen(key);
+    size_t len;
+    if (maxlen > curlen)
+        len = maxlen;
+    else
+        len = curlen;
+    if (minlen > len)
+        len = minlen;
+    double maxweight = CallculateHeight(MaxNode->list->head->key, len);
+    double minweight = CallculateHeight(MinNode->list->head->key, len);
+    double xcur = CallculateHeight(key, len);
+    double xmax = fabs(maxweight - xcur);
+    double xmin = fabs(minweight - xcur);
+    if (xmax < 0)
+        xmax = -xmax;
+    if (xmin < 0)
+        xmin = -xmin;
+    if (xmax > xmin) {
+        int i = 1;
+        Item* res = MaxNode->list->head;
+        while(numofel != i){
+            res = res->next;
+            if (res == NULL)
+                return NULL;
+            i++;
+        }
+        return res;
+    } else if (xmin > xmax) {
+        int i = 1;
+        Item* res = MinNode->list->head;
+        while(numofel != i){
+            res = res->next;
+            if (res == NULL)
+                return NULL;
+            i++;
+        }
+        return res;
+    } else {
+        int i = 1;
+        Item* res = MinNode->list->head;
+        while(numofel != i){
+            res = res->next;
+            if (res == NULL){
+                res = MaxNode->list->head;
+                break;
+            }
+            i++;
+        }
+        while(numofel != i){
+            res = res->next;
+            if (res == NULL)
+                return NULL;
+            i++;
+        }
+        return res;
+    }
+}
+
+Node* FindMin(Tree* tree) {
+    Node* min = tree->root;
+    while (min->left != NULL) {
+        min = min->left;
+    }
+    return min;
+}
+
+Node* FindMax(Tree* tree) {
+    Node* max = tree->root;
+    while (max->right != NULL) {
+        max = max->right;
+    }
+    return max;
+}
+
+//int CallculateDistance(const char* a, const char* b) {
+//    int res = 0;
+//    int x;
+//    while (a[i] == b[i] && a[i] != '\0'){
+//        i++;
+//    }
+//    if(a[i] == 0 && b[i] == 0)
+//        return 0;
+//    while (a[i] != 0 && b[j] != 0) {
+//        x = a[i] - b[j];
+//        if (x > 0)
+//            res += x;
+//        else if (x < 0)
+//            res += 256 - x;
+//        if (a[i] != 0)
+//            i++;
+//        if (b[j] != 0)
+//            j++;
+//    }
+//    if (a[0] < b[0])
+//        res = -res;
+//    return res;
+//}
+
+double CallculateHeight(const char* s, size_t len) {
+    size_t i = 0;
+    double res = 0;
+    for (; s[i] != 0; i++) {
+        res *= 256;
+        res += s[i];
+    }
+    res *= pow(256, (double)(len - i));
+    return res;
+}
 
 
-//написать функцию, которое находит кол-во элементов в узле для использования ее
-// в функции удаления в 305 и т.д.( условие, если элемент один, идем как написано, если же нет, удаляем 1 эл-нт.
+void PrintGV(Tree* tree){
+    fprintf(stderr, "generating GraphViz file...\n");
+    FILE* f;
+    char nfile[] = "TreeGV.XXXXXX";
+    char gfile[L_tmpnam + 4] = "Graph.XXXXXX";
+    char cmd[PATH_MAX + 10];
 
-//ВСЕГО 4 функции поиска, 1 для удаления,одна универсальная для нахождения узла,
-// третья для нахождения нужного айтема на экран(без специального)
+    int fd = mkstemp(nfile);
+    mktemp(gfile);
+    strcat(gfile, ".png");
+
+    f = fdopen(fd, "w");
+    if (f == NULL) {
+        fprintf(stderr, "Could not create temporary file: %s\n", strerror(errno));
+        return;
+    }
+    fprintf(f, "digraph Tree {\n");
+    WalkTree(tree->root, GenerateGV, f, 0, 1);
+    fprintf(f, "}\n");
+    fclose(f);
+
+    fprintf(stderr, "running GraphViz...\n");
+    snprintf(cmd, sizeof(cmd),"dot -o%s -Tpng %s", gfile, nfile);
+    system(cmd);
+
+    fprintf(stderr, "showing picture...\n");
+#ifdef WIN32
+    snprintf(cmd, sizeof(cmd),",mspaint %s", gfile);
+#else
+    snprintf(cmd, sizeof(cmd),"xdg-open %s", gfile);
+#endif
+    system(cmd);
+
+#ifndef DEBUG
+#ifdef WIN32
+    DeleteFile(nfile);
+    DeleteFile(gfile);
+#else
+    unlink(nfile);
+    //unlink(gfile);
+#endif
+#endif
+}
+
+void GenerateGV(Node* node, void* p){      //callback(cb)
+    FILE* f = p;
+
+    Item *item = node->list->head;
+    fprintf(f, "\"%s: %zu\" [color = %s]\n", item->key, item->data,
+            (node->color == red) ? "red" : "black");
+
+    static size_t nullcount = 0;
+    if (node->left != NULL){
+        fprintf(f, "\"%s: %zu\" -> \"%s: %zu\"\n",
+                item->key, item->data,
+                node->left->list->head->key, node->left->list->head->data);
+    } else {
+        fprintf(f, "\"null%d\" [label = EList]\n", nullcount);
+        fprintf(f, "\"%s: %zu\" -> \"null%d\"\n",
+                item->key, item->data, nullcount);
+        nullcount++;
+    }
+    if (node->right != NULL){
+        fprintf(f, "\"%s: %zu\" -> \"%s: %zu\"\n",
+                item->key, item->data,
+                node->right->list->head->key, node->right->list->head->data);
+    } else {
+        fprintf(f, "\"null%d\" [label = EList]\n", nullcount);
+        fprintf(f, "\"%s: %zu\" -> \"null%d\"\n",
+                item->key, item->data, nullcount);
+        nullcount++;
+    }
+}

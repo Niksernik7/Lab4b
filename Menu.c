@@ -1,9 +1,7 @@
 #include "Menu.h"
 #include <string.h>
-#include <limits.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 #ifdef WIN32
 #include <windows.h>
@@ -21,8 +19,8 @@ char* enterString(){
 void ShowFindMenu() {
     printf("Find\n");
     printf("Choice\n");
-    printf("1) Special find by key(minimal, that is more than key\n");
-    printf("2) Find by key)\n");
+    printf("1) Special find by key and number(max difference)\n");
+    printf("2) Find by key and number\n");
     printf("0) Exit\n");
     printf(" : ");
 }
@@ -173,16 +171,18 @@ void FindInTree(Tree* tree, size_t mod) {
         case 0:
             break;
         case 1: {
-            //printf("Enter:\n");
-            //printf(" Key : ");
-            //char* key = enterString();
-            //Node** res = NULL;
-            //Node* node;
-            //node = FindMinElemGreaterThen(node, key, res);
-            //if (node != NULL) {
-            //    printNode(node);
-            //} else printf("Doesn't exist\n");
-            //free(key);
+            printf("Enter:\n");
+            printf(" Key : ");
+            char *key = enterString();
+            printf(" Number: ");
+            int n = GetInt();
+            Item* node = SpecialFind(tree, key, n);
+            if (!node){
+                printf("Doesn't exists!\n");
+                break;
+            }
+            free(key);
+            printNode(node);
             break;
         }
         case 2: {
@@ -192,8 +192,8 @@ void FindInTree(Tree* tree, size_t mod) {
             printf(" Number: ");
             int n = GetInt();
             Item* node = Find(tree, key, n);
-            if (!Find){
-                printf("Doesn't exists!");
+            if (!node){
+                printf("Doesn't exists!\n");
                 break;
             }
 
@@ -214,72 +214,4 @@ char* get_str(const Item* item) {
     char* s = malloc(buflen);
     snprintf(s, buflen, "%s | %zu | %d", item->key, item->data, item->number);
     return s;
-}
-
-#include <time.h>
-#include <unistd.h>
-
-void PrintGV(Tree* tree){
-    fprintf(stderr, "generating GraphViz file...\n");
-    FILE* f;
-    char nfile[] = "TreeGV.XXXXXX";
-    char gfile[L_tmpnam + 4] = "Graph.XXXXXX";
-    char cmd[PATH_MAX + 10];
-
-    int fd = mkstemp(nfile);
-    mktemp(gfile);
-    strcat(gfile, ".png");
-
-    f = fdopen(fd, "w");
-    if (f == NULL) {
-        fprintf(stderr, "Could not create temporary file: %s\n", strerror(errno));
-        return;
-    }
-    fprintf(f, "digraph Tree {\n");
-    WalkTree(tree->root, GenerateGV, f, 0, 1);
-    fprintf(f, "}\n");
-    fclose(f);
-
-    fprintf(stderr, "running GraphViz...\n");
-    snprintf(cmd, sizeof(cmd),"dot -o%s -Tpng %s", gfile, nfile);
-    system(cmd);
-
-    fprintf(stderr, "showing picture...\n");
-#ifdef WIN32
-    snprintf(cmd, sizeof(cmd),",mspaint %s", gfile);
-#else
-    snprintf(cmd, sizeof(cmd),"xdg-open %s", gfile);
-#endif
-    system(cmd);
-
-#ifdef WIN32
-    DeleteFile(nfile);
-    DeleteFile(gfile);
-#else
-    unlink(nfile);
-    unlink(gfile);
-#endif
-}
-
-void GenerateGV(Node* node, void* p){      //callback(cb)
-    FILE* f = p;
-    static size_t nullcount = 0;
-    if (node->left != NULL){
-        fprintf(f, "\"%s: %zu\" -> \"%s: %zu\"\n",
-                node->list->head->key, node->list->head->data,
-                node->left->list->head->key, node->left->list->head->data);
-    } else {
-        fprintf(f, "\"%s: %zu\" -> \"null%d\"\n",
-                node->list->head->key, node->list->head->data, nullcount);
-        nullcount++;
-    }
-    if (node->right != NULL){
-        fprintf(f, "\"%s: %zu\" -> \"%s: %zu\"\n",
-                node->list->head->key, node->list->head->data,
-                node->right->list->head->key, node->right->list->head->data);
-    } else {
-        fprintf(f, "\"%s: %zu\" -> \"null%d\"\n",
-                node->list->head->key, node->list->head->data, nullcount);
-        nullcount++;
-    }
 }

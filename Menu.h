@@ -9,8 +9,6 @@ Tree* Create();
 void Delete(Tree*, int);
 void AddNode(Tree*);
 
-void GenerateGV(Node*, void*);
-void PrintGV(Tree*);
 
 
 #endif
