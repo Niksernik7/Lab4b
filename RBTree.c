@@ -1,12 +1,24 @@
 #include <assert.h>
 #include <limits.h>
-#include <unistd.h>
+//#include <unistd.h>
 
 #ifdef WIN32
 #include <windows.h>
+
+#ifndef PATH_MAX
+#define PATH_MAX MAX_PATH
+#endif
 #endif
 
 #include "RBTree.h"
+
+static void DeleteNodeFixup(Tree* tree, Node* x);
+static void DeleteNodeFixup_1(Tree* tree, Node* x);
+static void DeleteNodeFixup_2(Tree* tree, Node* x);
+static void DeleteNodeFixup_3l(Tree* tree, Node* x);
+static void DeleteNodeFixup_3r(Tree* tree, Node* x);
+static void DeleteNodeFixup_4(Tree* tree, Node* x);
+static void SwapColors(Node* a, Node* b);
 
 
 int Insert(Tree* tree, const char* key, size_t data){
@@ -601,17 +613,18 @@ double CallculateHeight(const char* s, size_t len) {
 void PrintGV(Tree* tree){
     fprintf(stderr, "generating GraphViz file...\n");
     FILE* f;
-    char nfile[] = "TreeGV.XXXXXX";
+    char nfile[L_tmpnam + 4] = "TreeGV.XXXXXX";
     char gfile[L_tmpnam + 4] = "Graph.XXXXXX";
     char cmd[PATH_MAX + 10];
 
-    int fd = mkstemp(nfile);
+    mktemp(nfile);
+    strcat(nfile, ".txt");
     mktemp(gfile);
     strcat(gfile, ".png");
 
-    f = fdopen(fd, "w");
+    f = fopen(nfile, "w");
     if (f == NULL) {
-        fprintf(stderr, "Could not create temporary file: %s\n", strerror(errno));
+        fprintf(stderr, "Could not open temporary file: %s\n", strerror(errno));
         return;
     }
     fprintf(f, "digraph Tree {\n");
@@ -669,5 +682,79 @@ void GenerateGV(Node* node, void* p){      //callback(cb)
         fprintf(f, "\"%s: %zu\" -> \"null%d\"\n",
                 item->key, item->data, nullcount);
         nullcount++;
+    }
+}
+
+void SwapColors(Node* a, Node* b) {
+    enum color t = a->color;
+    a->color = b->color;
+    b->color = t;
+}
+
+// w - красный
+void DeleteNodeFixup_1(Tree* tree, Node* x) {
+    Node* w = GetBrother(x);
+
+    // TODO
+}
+
+// w - чёрный
+// потомки w - чёрные
+void DeleteNodeFixup_2(Tree* tree, Node* x) {
+    Node* w = GetBrother(x);
+
+    // TODO
+}
+
+// w - чёрный
+// w->right - чёрный
+// w->left - красный
+void DeleteNodeFixup_3l(Tree* tree, Node* x) {
+    Node* w = GetBrother(x);
+
+    SwapColors(w, w->left);
+    RightRotate(tree, w);
+    DeleteNodeFixup_4(tree, x);
+}
+
+// w - чёрный
+// w->left - чёрный
+// w->right - красный
+void DeleteNodeFixup_3r(Tree* tree, Node* x) {
+    Node* w = GetBrother(x);
+
+    // TODO
+}
+
+// w - чёрный
+// w->right - красный
+void DeleteNodeFixup_4(Tree* tree, Node* x) {
+    Node* w = GetBrother(x);
+
+    // TODO
+}
+
+void DeleteNodeFixup(Tree* tree, Node* x) {
+    // x - удаляемый узел
+    // p - родитель
+    // w - брат удаляемого узла
+    for (Node* p = x->parent; p != NULL && x->color == black; x->color = black, x = x->parent) {
+        Node* w = GetBrother(x);
+        bool xIsLeft = (x == p->left);
+        if (w && w->color == red) {
+            DeleteNodeFixup_1(tree, x);
+        }
+        else if ((!w->left || w->left->color == black) && (!w->right || w->right->color == black)) {
+            DeleteNodeFixup_2(tree, x);
+        }
+        else if (xIsLeft && (!w->right || w->right->color == black)) {
+            DeleteNodeFixup_3l(tree, x);
+        }
+        else if (!xIsLeft && (!w->left || w->left->color == black)) {
+            DeleteNodeFixup_3r(tree, x);
+        }
+        else {
+            DeleteNodeFixup_4(tree, x);
+        }
     }
 }
