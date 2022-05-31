@@ -19,6 +19,7 @@ static void DeleteNodeFixup_3l(Tree* tree, Node* x);
 static void DeleteNodeFixup_3r(Tree* tree, Node* x);
 static void DeleteNodeFixup_4(Tree* tree, Node* x);
 static void SwapColors(Node* a, Node* b);
+void delete_fixup(Tree* tree, Node* x);
 
 int Insert(Tree* tree, const char* key, size_t data){
     size_t len = strlen(key) + 1;
@@ -352,12 +353,12 @@ void DeleteNode(Tree *tree, Node *nodeToDelete) {
             // both are black
             if (nodeToDelete->left) {
                 SwapValues(nodeToDelete, nodeToDelete->left);
-                nodeToDelete->left = NULL;
                 free(nodeToDelete->left);
+                nodeToDelete->left = NULL;
             } else {
                 SwapValues(nodeToDelete, nodeToDelete->right);
-                nodeToDelete->right = NULL;
                 free(nodeToDelete->right);
+                nodeToDelete->right = NULL;
             }
         }
     } else {
@@ -371,7 +372,7 @@ void DeleteNode(Tree *tree, Node *nodeToDelete) {
         enum color c = nodeToDelete->color;
         if (c == red)
             goto balanced;
-    }
+        }
 
     if (validationNode != NULL) {
         DeleteNodeFixup(tree, nodeToDelete);
@@ -379,7 +380,7 @@ void DeleteNode(Tree *tree, Node *nodeToDelete) {
 
     }
 
-balanced:
+    balanced:
     tree->size--;
     if(tree->size == 0) {
         tree->root = NULL;
@@ -570,16 +571,15 @@ double CallculateHeight(const char* s, size_t len) {
 void PrintGV(Tree* tree){
     fprintf(stderr, "generating GraphViz file...\n");
     FILE* f;
-    char nfile[L_tmpnam + 4] = "TreeGV.XXXXXX";
+    char nfile[] = "TreeGV.XXXXXX";
     char gfile[L_tmpnam + 4] = "Graph.XXXXXX";
     char cmd[PATH_MAX + 10];
 
-    mktemp(nfile);
-    strcat(nfile, ".txt");
-    mktemp(gfile);
+    int fd = mkstemp(nfile);
+    mkstemp(gfile);
     strcat(gfile, ".png");
 
-    f = fopen(nfile, "w");
+    f = fdopen(fd, "w");
     if (f == NULL) {
         fprintf(stderr, "Could not create temporary file: %s\n", strerror(errno));
         return;
@@ -602,7 +602,7 @@ void PrintGV(Tree* tree){
     system(cmd);
 
 #ifndef DEBUG
-#ifdef WIN32
+    #ifdef WIN32
     DeleteFile(nfile);
     DeleteFile(gfile);
 #else
@@ -665,7 +665,6 @@ void DeleteNodeFixup_2(Tree* tree, Node* x) {
 
     w->color = red;
     x = w->parent;
-    DeleteNodeFixup(tree, x);       // НЕВЕРНО, DeleteNodeFixup должна внутри себя крутиться
     // TODO
 }
 
@@ -700,7 +699,6 @@ void DeleteNodeFixup_4(Tree* tree, Node* x) {
     w->color = p->color;
     p->color = black;
     w->right->color = black;
-    DeleteNodeFixup(tree, x);       // НЕВЕРНО, DeleteNodeFixup должна внутри себя крутиться
     // TODO
 }
 
@@ -731,3 +729,75 @@ void DeleteNodeFixup(Tree* tree, Node* x) {
         }
     }
 }
+
+//void delete_fixup(Tree* tree, Node* x) {
+//    if (x == tree->root && x->color == red) {
+//        x->color = black;
+//        return;
+//    }
+//    if (x == tree->root)
+//        return;
+//    Node *p = x->parent;
+//    if (x == p->left) {
+//        Node *w = p->right;
+//        if(w != NULL && w->color == red) {
+//            p->color = black;
+//            w->color = red;
+//            LeftRotate(tree, p);
+//        }
+//        if (w != NULL && w->left->color == black && w->right->color == red) {
+//            if (p->color == black) {
+//                w->color = red;
+//                x = p;
+//                delete_fixup(tree, x);
+//            } else {
+//                p->color = black;
+//                w->color = red;
+//            }
+//        } else {
+//            if (w != NULL && w->right->color == black) {
+//                w->color = red;
+//                w->left->color = black;
+//                RightRotate(tree, w);
+//                w = p->right;
+//            }
+//            w->color = p->color;
+//            p->color = black;
+//            w->right->color = black;
+//            LeftRotate(tree, p);
+//            x = tree->root;
+//            delete_fixup(tree, x);
+//        }
+//    } else {
+//        Node *w = p->left;
+//        if (w != NULL && w->color == red) {
+//            p->color = black;
+//            w->color = red;
+//            RightRotate(tree, p);
+//        }
+//        if (w != NULL && w->left->color == black && w->right->color == black) {
+//            if (p->color == black) {
+//                w->color = red;
+//                x = p;
+//                delete_fixup(tree, x);
+//            } else {
+//                p->color = black;
+//                w->color = red;
+//            }
+//        } else {
+//            if (w != NULL && w->left->color == black) {
+//                w->color = red;
+//                w->right->color = black;
+//                LeftRotate(tree, w);
+//                w = p->left;
+//            }
+//                w->color = p->color;
+//                p->color = black;
+//                w->left->color = black;
+//                RightRotate(tree, p);
+//                x = tree->root;
+//                delete_fixup(tree, x);
+//        }
+//    }
+//    tree->root->color = black;
+//}
