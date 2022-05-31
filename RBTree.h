@@ -70,7 +70,7 @@ char* get_str(const Item*);
 void FreeTree(Tree*);
 
 void GenerateGV(Node*, void*);
-void PrintGV(Tree*);
+void PrintGV(Tree*, const char *);
 
 
 #endif

@@ -12,12 +12,19 @@
 
 #include "RBTree.h"
 
+typedef struct GVParams {
+    FILE* f;
+    const char* highlightKey;
+} GVParams;
+
 static void DeleteNodeFixup(Tree* tree, Node* x);
-static void DeleteNodeFixup_1(Tree* tree, Node* x);
-static void DeleteNodeFixup_2(Tree* tree, Node* x);
-static void DeleteNodeFixup_3l(Tree* tree, Node* x);
-static void DeleteNodeFixup_3r(Tree* tree, Node* x);
-static void DeleteNodeFixup_4(Tree* tree, Node* x);
+static void DeleteNodeFixup_1l(Tree* tree, Node* w);
+static void DeleteNodeFixup_1r(Tree* tree, Node* w);
+static void DeleteNodeFixup_2(Tree* tree, Node* w);
+static void DeleteNodeFixup_3l(Tree* tree, Node* w);
+static void DeleteNodeFixup_3r(Tree* tree, Node* w);
+static void DeleteNodeFixup_4l(Tree* tree, Node* w);
+static void DeleteNodeFixup_4r(Tree* tree, Node* w);
 static void SwapColors(Node* a, Node* b);
 void delete_fixup(Tree* tree, Node* x);
 
@@ -305,86 +312,55 @@ void RebalanceOnDelete(Tree *tree, Node *sibiling) {
 }
 
 void DeleteNode(Tree *tree, Node *nodeToDelete) {
-    Node* validationNode = GetBrother(nodeToDelete);
-
     if (nodeToDelete->left && nodeToDelete->right) {
-        // Find max or min and replace
-        Node *child = nodeToDelete->right;
-        while (child->left) {
-            child = child->left;
-        }
+        // Находим ближайший справа (можно и слева) узел.
+        // У него будет максимум один потомок, и далее ситуация с двумя потомками
+        // нам уже не встретится, иначе нарушалось бы одно из свойств RB-дерева.
+        Node *y = nodeToDelete->right;
+        while (y->left)
+            y = y->left;
+        SwapValues(nodeToDelete, y);
+        nodeToDelete = y;
+    }
 
-        SwapValues(child, nodeToDelete);
-
-        if(child->right) {
-            DeleteNode(tree, child);
-            return;
+    // возможно существующий дочерний элемент
+    Node* child = nodeToDelete->left ? nodeToDelete->left : nodeToDelete->right;
+    
+    // соединяем child и nodeToDelete->parent напрямую
+    if (child) {
+        child->parent = nodeToDelete->parent;
+        if (nodeToDelete->parent) {
+            if (nodeToDelete->parent->left == nodeToDelete)
+                nodeToDelete->parent->left = child;
+            else
+                nodeToDelete->parent->right = child;
         }
+        nodeToDelete->left = NULL;
+        nodeToDelete->right = NULL;
 
-        if (child != child->parent->right) {
-            child->parent->left = NULL;
-        } else {
-            child->parent->right = NULL;
-        }
-
-        if (nodeToDelete->color != child->color) {
-            free(child);
-            goto balanced;
-        }
-        else {
-            // both are black
-            free(child);
-        }
-    } else if (nodeToDelete->left || nodeToDelete->right) {
-        Node* child = nodeToDelete->left ? nodeToDelete->left : nodeToDelete->right;
-        if(nodeToDelete->color != child->color) {
-            child->color = black;
-            if (nodeToDelete->parent) {
-                if (nodeToDelete->parent->right == nodeToDelete)
-                    nodeToDelete->parent->right = child;
-                else
-                    nodeToDelete->parent->left = child;
-            }
-            child->parent = nodeToDelete->parent;
-            free(nodeToDelete);
-
-            goto balanced;
-        } else  {
-            // both are black
-            if (nodeToDelete->left) {
-                SwapValues(nodeToDelete, nodeToDelete->left);
-                free(nodeToDelete->left);
-                nodeToDelete->left = NULL;
-            } else {
-                SwapValues(nodeToDelete, nodeToDelete->right);
-                free(nodeToDelete->right);
-                nodeToDelete->right = NULL;
-            }
+        if (nodeToDelete->color == black) {
+            if (child->color == red)
+                child->color = black;
+            else
+                DeleteNodeFixup(tree, nodeToDelete);
         }
     } else {
-        if(nodeToDelete->parent) {
-            if (nodeToDelete->parent->left == nodeToDelete) {
+        if (nodeToDelete->color == black)
+            DeleteNodeFixup(tree, nodeToDelete);
+        if (nodeToDelete->parent) {
+            if (nodeToDelete->parent->left == nodeToDelete)
                 nodeToDelete->parent->left = NULL;
-            } else {
+            else
                 nodeToDelete->parent->right = NULL;
-            }
         }
-        enum color c = nodeToDelete->color;
-        if (c == red)
-            goto balanced;
-        }
-
-    if (validationNode != NULL) {
-        DeleteNodeFixup(tree, nodeToDelete);
-        free(nodeToDelete);
-
     }
 
-    balanced:
+balanced:
+    assert(nodeToDelete->left == NULL && nodeToDelete->right == NULL);
+    free(nodeToDelete);
     tree->size--;
-    if(tree->size == 0) {
+    if (tree->size == 0)
         tree->root = NULL;
-    }
 }
 
 bool DeleteByKeyAndNumber(Tree *tree, char *key, int numofel) {
@@ -568,24 +544,26 @@ double CallculateHeight(const char* s, size_t len) {
 }
 
 
-void PrintGV(Tree* tree){
+void PrintGV(Tree* tree, const char* highlightKey) {
     fprintf(stderr, "generating GraphViz file...\n");
     FILE* f;
-    char nfile[] = "TreeGV.XXXXXX";
+    char nfile[L_tmpnam + 4] = "TreeGV.XXXXXX";
     char gfile[L_tmpnam + 4] = "Graph.XXXXXX";
     char cmd[PATH_MAX + 10];
 
-    int fd = mkstemp(nfile);
-    mkstemp(gfile);
+    mktemp(nfile);
+    strcat(nfile, ".txt");
+    mktemp(gfile);
     strcat(gfile, ".png");
 
-    f = fdopen(fd, "w");
+    f = fopen(nfile, "w");
     if (f == NULL) {
         fprintf(stderr, "Could not create temporary file: %s\n", strerror(errno));
         return;
     }
     fprintf(f, "digraph Tree {\n");
-    WalkTree(tree->root, GenerateGV, f, 0, 1);
+    GVParams gvp = { f, highlightKey };
+    WalkTree(tree->root, GenerateGV, &gvp, 0, 1);
     fprintf(f, "}\n");
     fclose(f);
 
@@ -613,30 +591,31 @@ void PrintGV(Tree* tree){
 }
 
 void GenerateGV(Node* node, void* p){      //callback(cb)
-    FILE* f = p;
+    GVParams *params = p;
 
     Item *item = node->list->head;
-    fprintf(f, "\"%s: %zu\" [color = %s]\n", item->key, item->data,
-            (node->color == red) ? "red" : "black");
+    fprintf(params->f, "\"%s: %zu\" [fontcolor = %s, color = %s]\n", item->key, item->data,
+            (node->color == red) ? "red" : "black",
+            (params->highlightKey && strcmp(item->key, params->highlightKey) == 0) ? "yellow" : "black");
 
     static size_t nullcount = 0;
     if (node->left != NULL){
-        fprintf(f, "\"%s: %zu\" -> \"%s: %zu\"\n",
+        fprintf(params->f, "\"%s: %zu\" -> \"%s: %zu\"\n",
                 item->key, item->data,
                 node->left->list->head->key, node->left->list->head->data);
     } else {
-        fprintf(f, "\"null%d\" [label = EList]\n", nullcount);
-        fprintf(f, "\"%s: %zu\" -> \"null%d\"\n",
+        fprintf(params->f, "\"null%zu\" [label = EList]\n", nullcount);
+        fprintf(params->f, "\"%s: %zu\" -> \"null%zu\"\n",
                 item->key, item->data, nullcount);
         nullcount++;
     }
     if (node->right != NULL){
-        fprintf(f, "\"%s: %zu\" -> \"%s: %zu\"\n",
+        fprintf(params->f, "\"%s: %zu\" -> \"%s: %zu\"\n",
                 item->key, item->data,
                 node->right->list->head->key, node->right->list->head->data);
     } else {
-        fprintf(f, "\"null%d\" [label = EList]\n", nullcount);
-        fprintf(f, "\"%s: %zu\" -> \"null%d\"\n",
+        fprintf(params->f, "\"null%zu\" [label = EList]\n", nullcount);
+        fprintf(params->f, "\"%s: %zu\" -> \"null%zu\"\n",
                 item->key, item->data, nullcount);
         nullcount++;
     }
@@ -648,156 +627,113 @@ void SwapColors(Node* a, Node* b) {
     b->color = t;
 }
 
-// w - красный
-void DeleteNodeFixup_1(Tree* tree, Node* x) {
-    Node* w = GetBrother(x);
-
+// w - красный правый потомок своего (чёрного) родителя
+void DeleteNodeFixup_1l(Tree* tree, Node* w) {
     Node* p = w->parent;
-    SwapColors(w, p);
+    assert(w->color == red);
+    assert(p->color == black);
+    assert(p->right == w);
+    w->color = black;
+    p->color = red;
     LeftRotate(tree, p);
-    // TODO
 }
 
-// w - чёрный
-// потомки w - чёрные
-void DeleteNodeFixup_2(Tree* tree, Node* x) {
-    Node* w = GetBrother(x);
+// w - красный левый потомок своего (чёрного) родителя
+void DeleteNodeFixup_1r(Tree* tree, Node* w) {
+    Node* p = w->parent;
+    assert(w->color == red);
+    assert(p->color == black);
+    assert(p->left == w);
+    w->color = black;
+    p->color = red;
+    RightRotate(tree, p);
+}
 
+void DeleteNodeFixup_2(Tree* tree, Node* w) {
+    assert(w->color == black);
+    assert(w->left == NULL || w->left->color == black);
+    assert(w->right == NULL || w->right->color == black);
     w->color = red;
-    x = w->parent;
-    // TODO
 }
 
-// w - чёрный
-// w->right - чёрный
-// w->left - красный
-void DeleteNodeFixup_3l(Tree* tree, Node* x) {
-    Node* w = GetBrother(x);
-
-    SwapColors(w, w->left);
+void DeleteNodeFixup_3l(Tree* tree, Node* w) {
+    assert(w->color == black);
+    assert(w->left->color == red);
+    assert(w->right == NULL || w->right->color == black);
+    w->color = red;
+    w->left->color = black;
     RightRotate(tree, w);
-    DeleteNodeFixup_4(tree, x);
 }
 
-// w - чёрный
-// w->left - чёрный
-// w->right - красный
-void DeleteNodeFixup_3r(Tree* tree, Node* x) {
-    Node* w = GetBrother(x);
-
-    SwapColors(w, w->right);
+void DeleteNodeFixup_3r(Tree* tree, Node* w) {
+    assert(w->color == black);
+    assert(w->left == NULL || w->left->color == black);
+    assert(w->right->color == red);
+    w->color = red;
+    w->right->color = black;
     LeftRotate(tree, w);
-    DeleteNodeFixup_4(tree, x);
-    // TODO
 }
 
-// w - чёрный
-// w->right - красный
-void DeleteNodeFixup_4(Tree* tree, Node* x) {
-    Node* w = GetBrother(x);
+void DeleteNodeFixup_4l(Tree* tree, Node* w) {
+    assert(w->color == black);
+    assert(w->right->color == red);
     Node* p = w->parent;
     w->color = p->color;
     p->color = black;
     w->right->color = black;
-    // TODO
+    LeftRotate(tree, p);
 }
 
+void DeleteNodeFixup_4r(Tree* tree, Node* w) {
+    assert(w->color == black);
+    assert(w->left->color == red);
+    Node* p = w->parent;
+    w->color = p->color;
+    p->color = black;
+    w->left->color = black;
+    RightRotate(tree, p);
+}
+
+// x - удаляемый узел
 void DeleteNodeFixup(Tree* tree, Node* x) {
-    // x - удаляемый узел
-    // p - родитель
-    // w - брат удаляемого узла
-    for (; x->parent != NULL && x->color == black; x->color = black, x = x->parent) {
+    while(x->parent != NULL && x->color == black) {
         Node* p = x->parent;
-        Node *w = GetBrother(x);
+        Node* w = GetBrother(x);
         if (w == NULL)
             continue;
+        Node* savedRoot = tree->root;
         bool xIsLeft = (x == p->left);
         if (w->color == red) {
-            DeleteNodeFixup_1(tree, x);
+            if (xIsLeft) {
+                DeleteNodeFixup_1l(tree, w);
+                w = p->right;
+            } else {
+                DeleteNodeFixup_1r(tree, w);
+                w = p->left;
+            }
         }
-        // Из случая 1 получается случай 2, 3 или 4
         if ((!w->left || w->left->color == black) && (!w->right || w->right->color == black)) {
-            DeleteNodeFixup_2(tree, x);
+            DeleteNodeFixup_2(tree, w);
+            if (p->color == red) {
+                p->color = black;
+                break;
+            }
+            x = x->parent;
         } else {
-            if (xIsLeft && (!w->right || w->right->color == black)) {
-                DeleteNodeFixup_3l(tree, x);
-            } else if (!xIsLeft && (!w->left || w->left->color == black)) {
-                DeleteNodeFixup_3r(tree, x);
+            if (xIsLeft && (w->left && w->left->color == red) && (!w->right || w->right->color == black)) {
+                DeleteNodeFixup_3l(tree, w);
+                w = p->right;
+            } else if (!xIsLeft && (w->right && w->right->color == red) && (!w->left || w->left->color == black)) {
+                DeleteNodeFixup_3r(tree, w);
+                w = p->left;
             }
             // Из случая 3 получается случай 4
-            DeleteNodeFixup_4(tree, x);
+            if (xIsLeft)
+                DeleteNodeFixup_4l(tree, w);
+            else
+                DeleteNodeFixup_4r(tree, w);
+            break;
         }
     }
+    x->color = black;
 }
-
-//void delete_fixup(Tree* tree, Node* x) {
-//    if (x == tree->root && x->color == red) {
-//        x->color = black;
-//        return;
-//    }
-//    if (x == tree->root)
-//        return;
-//    Node *p = x->parent;
-//    if (x == p->left) {
-//        Node *w = p->right;
-//        if(w != NULL && w->color == red) {
-//            p->color = black;
-//            w->color = red;
-//            LeftRotate(tree, p);
-//        }
-//        if (w != NULL && w->left->color == black && w->right->color == red) {
-//            if (p->color == black) {
-//                w->color = red;
-//                x = p;
-//                delete_fixup(tree, x);
-//            } else {
-//                p->color = black;
-//                w->color = red;
-//            }
-//        } else {
-//            if (w != NULL && w->right->color == black) {
-//                w->color = red;
-//                w->left->color = black;
-//                RightRotate(tree, w);
-//                w = p->right;
-//            }
-//            w->color = p->color;
-//            p->color = black;
-//            w->right->color = black;
-//            LeftRotate(tree, p);
-//            x = tree->root;
-//            delete_fixup(tree, x);
-//        }
-//    } else {
-//        Node *w = p->left;
-//        if (w != NULL && w->color == red) {
-//            p->color = black;
-//            w->color = red;
-//            RightRotate(tree, p);
-//        }
-//        if (w != NULL && w->left->color == black && w->right->color == black) {
-//            if (p->color == black) {
-//                w->color = red;
-//                x = p;
-//                delete_fixup(tree, x);
-//            } else {
-//                p->color = black;
-//                w->color = red;
-//            }
-//        } else {
-//            if (w != NULL && w->left->color == black) {
-//                w->color = red;
-//                w->right->color = black;
-//                LeftRotate(tree, w);
-//                w = p->left;
-//            }
-//                w->color = p->color;
-//                p->color = black;
-//                w->left->color = black;
-//                RightRotate(tree, p);
-//                x = tree->root;
-//                delete_fixup(tree, x);
-//        }
-//    }
-//    tree->root->color = black;
-//}

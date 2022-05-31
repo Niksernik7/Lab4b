@@ -89,7 +89,7 @@ void Menu() {
                 return;
             }
             case 1: {
-                PrintGV(tree);
+                PrintGV(tree, NULL);
                 break;
             }
             case 2: {
