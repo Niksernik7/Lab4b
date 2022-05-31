@@ -1,4 +1,0 @@
-C:/Users/nikse/Lab4b/cmake-build-debug/CMakeFiles/edit_cache.dir
-C:/Users/nikse/Lab4b/cmake-build-debug/CMakeFiles/untitled.dir
-C:/Users/nikse/Lab4b/cmake-build-debug/CMakeFiles/tests.dir
-C:/Users/nikse/Lab4b/cmake-build-debug/CMakeFiles/rebuild_cache.dir
