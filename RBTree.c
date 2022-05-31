@@ -686,13 +686,13 @@ void GenerateGV(Node* node, void* p){      //callback(cb)
 }
 
 void SwapColors(Node* a, Node* b) {
-    color t = a->color;
+    enum color t = a->color;
     a->color = b->color;
     b->color = t;
 }
 
 // w - красный
-void DeleteNodeFixup_1(Tree* tree, Node* w) {
+void DeleteNodeFixup_1(Tree* tree, Node* x) {
     Node* w = GetBrother(x);
 
     // TODO
@@ -714,7 +714,7 @@ void DeleteNodeFixup_3l(Tree* tree, Node* x) {
 
     SwapColors(w, w->left);
     RightRotate(tree, w);
-    DeleteNodeFixup_4(x);
+    DeleteNodeFixup_4(tree, x);
 }
 
 // w - чёрный
