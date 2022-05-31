@@ -1,9 +1,13 @@
 #include <assert.h>
 #include <limits.h>
-#include <unistd.h>
 
 #ifdef WIN32
 #include <windows.h>
+#ifndef PATH_MAX
+#define PATH_MAX MAX_PATH
+#endif
+#else
+#include <unistd.h>
 #endif
 
 #include "RBTree.h"
@@ -566,15 +570,16 @@ double CallculateHeight(const char* s, size_t len) {
 void PrintGV(Tree* tree){
     fprintf(stderr, "generating GraphViz file...\n");
     FILE* f;
-    char nfile[] = "TreeGV.XXXXXX";
+    char nfile[L_tmpnam + 4] = "TreeGV.XXXXXX";
     char gfile[L_tmpnam + 4] = "Graph.XXXXXX";
     char cmd[PATH_MAX + 10];
 
-    int fd = mkstemp(nfile);
+    mktemp(nfile);
+    strcat(nfile, ".txt");
     mktemp(gfile);
     strcat(gfile, ".png");
 
-    f = fdopen(fd, "w");
+    f = fopen(nfile, "w");
     if (f == NULL) {
         fprintf(stderr, "Could not create temporary file: %s\n", strerror(errno));
         return;
@@ -660,7 +665,7 @@ void DeleteNodeFixup_2(Tree* tree, Node* x) {
 
     w->color = red;
     x = w->parent;
-    DeleteNodeFixup(tree, x);
+    DeleteNodeFixup(tree, x);       // НЕВЕРНО, DeleteNodeFixup должна внутри себя крутиться
     // TODO
 }
 
@@ -695,7 +700,7 @@ void DeleteNodeFixup_4(Tree* tree, Node* x) {
     w->color = p->color;
     p->color = black;
     w->right->color = black;
-    DeleteNodeFixup(tree, x);
+    DeleteNodeFixup(tree, x);       // НЕВЕРНО, DeleteNodeFixup должна внутри себя крутиться
     // TODO
 }
 
@@ -703,20 +708,26 @@ void DeleteNodeFixup(Tree* tree, Node* x) {
     // x - удаляемый узел
     // p - родитель
     // w - брат удаляемого узла
-    for (Node *p = x->parent; p != NULL && x->color == black; x->color = black, x = x->parent) {
+    for (; x->parent != NULL && x->color == black; x->color = black, x = x->parent) {
+        Node* p = x->parent;
         Node *w = GetBrother(x);
+        if (w == NULL)
+            continue;
         bool xIsLeft = (x == p->left);
-        if (w && w->color == red) {
+        if (w->color == red) {
             DeleteNodeFixup_1(tree, x);
-        } else if ( (!w->left || w->left->color == black) && (!w->right || w->right->color == black)) {
+        }
+        // Из случая 1 получается случай 2, 3 или 4
+        if ((!w->left || w->left->color == black) && (!w->right || w->right->color == black)) {
             DeleteNodeFixup_2(tree, x);
-        } else if (xIsLeft && (!w->right || w->right->color == black)) {
-            DeleteNodeFixup_3l(tree, x);
-        } else if (!xIsLeft && (!w->left || w->left->color == black)) {
-            DeleteNodeFixup_3r(tree, x);
         } else {
-            if (w != NULL)
-                DeleteNodeFixup_4(tree, x);
+            if (xIsLeft && (!w->right || w->right->color == black)) {
+                DeleteNodeFixup_3l(tree, x);
+            } else if (!xIsLeft && (!w->left || w->left->color == black)) {
+                DeleteNodeFixup_3r(tree, x);
+            }
+            // Из случая 3 получается случай 4
+            DeleteNodeFixup_4(tree, x);
         }
     }
 }
