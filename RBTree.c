@@ -1,13 +1,9 @@
 #include <assert.h>
 #include <limits.h>
-//#include <unistd.h>
+#include <unistd.h>
 
 #ifdef WIN32
 #include <windows.h>
-
-#ifndef PATH_MAX
-#define PATH_MAX MAX_PATH
-#endif
 #endif
 
 #include "RBTree.h"
@@ -20,9 +16,8 @@ static void DeleteNodeFixup_3r(Tree* tree, Node* x);
 static void DeleteNodeFixup_4(Tree* tree, Node* x);
 static void SwapColors(Node* a, Node* b);
 
-
 int Insert(Tree* tree, const char* key, size_t data){
-    int len = strlen(key) + 1;
+    size_t len = strlen(key) + 1;
     if (tree == NULL)
         return -1;
     int i;
@@ -84,28 +79,7 @@ int Insert(Tree* tree, const char* key, size_t data){
 }
 
 
-//bool Insert(Tree *tree, const char *key, size_t data) {
-//    if (tree == NULL) {
-//        return false;
-//    }
-//    Node* newNode = calloc(1, sizeof(Node));
-//    newNode->data = data;
-//    newNode->key = strdup(key);
-//    newNode->right = NULL;
-//    newNode->left = NULL;
-//    newNode->parent = NULL;
-//    newNode->color = red;
-//    if (tree->root == NULL) {
-//        tree->root = InsertNode(tree->root, newNode);
-//        tree->root->color = black;
-//        tree->size = 1;
-//    } else {
-//        InsertNode(tree->root, newNode);
-//        tree->size++;
-//    }
-//    RebalanceOnAdd(tree, newNode);
-//    return true;
-//}
+
 
 void CheckRotate(Node* node, void* arg){
     if (node->parent == NULL)
@@ -391,13 +365,14 @@ void DeleteNode(Tree *tree, Node *nodeToDelete) {
             }
         }
         enum color c = nodeToDelete->color;
-        free(nodeToDelete);
         if (c == red)
             goto balanced;
     }
 
     if (validationNode != NULL) {
-        RebalanceOnDelete(tree, validationNode);
+        DeleteNodeFixup(tree, nodeToDelete);
+        free(nodeToDelete);
+
     }
 
 balanced:
@@ -574,29 +549,7 @@ Node* FindMax(Tree* tree) {
     return max;
 }
 
-//int CallculateDistance(const char* a, const char* b) {
-//    int res = 0;
-//    int x;
-//    while (a[i] == b[i] && a[i] != '\0'){
-//        i++;
-//    }
-//    if(a[i] == 0 && b[i] == 0)
-//        return 0;
-//    while (a[i] != 0 && b[j] != 0) {
-//        x = a[i] - b[j];
-//        if (x > 0)
-//            res += x;
-//        else if (x < 0)
-//            res += 256 - x;
-//        if (a[i] != 0)
-//            i++;
-//        if (b[j] != 0)
-//            j++;
-//    }
-//    if (a[0] < b[0])
-//        res = -res;
-//    return res;
-//}
+
 
 double CallculateHeight(const char* s, size_t len) {
     size_t i = 0;
@@ -613,18 +566,17 @@ double CallculateHeight(const char* s, size_t len) {
 void PrintGV(Tree* tree){
     fprintf(stderr, "generating GraphViz file...\n");
     FILE* f;
-    char nfile[L_tmpnam + 4] = "TreeGV.XXXXXX";
+    char nfile[] = "TreeGV.XXXXXX";
     char gfile[L_tmpnam + 4] = "Graph.XXXXXX";
     char cmd[PATH_MAX + 10];
 
-    mktemp(nfile);
-    strcat(nfile, ".txt");
+    int fd = mkstemp(nfile);
     mktemp(gfile);
     strcat(gfile, ".png");
 
-    f = fopen(nfile, "w");
+    f = fdopen(fd, "w");
     if (f == NULL) {
-        fprintf(stderr, "Could not open temporary file: %s\n", strerror(errno));
+        fprintf(stderr, "Could not create temporary file: %s\n", strerror(errno));
         return;
     }
     fprintf(f, "digraph Tree {\n");
@@ -695,6 +647,9 @@ void SwapColors(Node* a, Node* b) {
 void DeleteNodeFixup_1(Tree* tree, Node* x) {
     Node* w = GetBrother(x);
 
+    Node* p = w->parent;
+    SwapColors(w, p);
+    LeftRotate(tree, p);
     // TODO
 }
 
@@ -703,6 +658,9 @@ void DeleteNodeFixup_1(Tree* tree, Node* x) {
 void DeleteNodeFixup_2(Tree* tree, Node* x) {
     Node* w = GetBrother(x);
 
+    w->color = red;
+    x = w->parent;
+    DeleteNodeFixup(tree, x);
     // TODO
 }
 
@@ -723,6 +681,9 @@ void DeleteNodeFixup_3l(Tree* tree, Node* x) {
 void DeleteNodeFixup_3r(Tree* tree, Node* x) {
     Node* w = GetBrother(x);
 
+    SwapColors(w, w->right);
+    LeftRotate(tree, w);
+    DeleteNodeFixup_4(tree, x);
     // TODO
 }
 
@@ -730,7 +691,11 @@ void DeleteNodeFixup_3r(Tree* tree, Node* x) {
 // w->right - красный
 void DeleteNodeFixup_4(Tree* tree, Node* x) {
     Node* w = GetBrother(x);
-
+    Node* p = w->parent;
+    w->color = p->color;
+    p->color = black;
+    w->right->color = black;
+    DeleteNodeFixup(tree, x);
     // TODO
 }
 
@@ -738,23 +703,20 @@ void DeleteNodeFixup(Tree* tree, Node* x) {
     // x - удаляемый узел
     // p - родитель
     // w - брат удаляемого узла
-    for (Node* p = x->parent; p != NULL && x->color == black; x->color = black, x = x->parent) {
-        Node* w = GetBrother(x);
+    for (Node *p = x->parent; p != NULL && x->color == black; x->color = black, x = x->parent) {
+        Node *w = GetBrother(x);
         bool xIsLeft = (x == p->left);
         if (w && w->color == red) {
             DeleteNodeFixup_1(tree, x);
-        }
-        else if ((!w->left || w->left->color == black) && (!w->right || w->right->color == black)) {
+        } else if ( (!w->left || w->left->color == black) && (!w->right || w->right->color == black)) {
             DeleteNodeFixup_2(tree, x);
-        }
-        else if (xIsLeft && (!w->right || w->right->color == black)) {
+        } else if (xIsLeft && (!w->right || w->right->color == black)) {
             DeleteNodeFixup_3l(tree, x);
-        }
-        else if (!xIsLeft && (!w->left || w->left->color == black)) {
+        } else if (!xIsLeft && (!w->left || w->left->color == black)) {
             DeleteNodeFixup_3r(tree, x);
-        }
-        else {
-            DeleteNodeFixup_4(tree, x);
+        } else {
+            if (w != NULL)
+                DeleteNodeFixup_4(tree, x);
         }
     }
 }
