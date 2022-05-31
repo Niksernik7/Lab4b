@@ -262,7 +262,7 @@ Item *Find(Tree *tree, const char *key, int numofel) {
 }
 
 void RebalanceOnDelete2(Tree *tree, Node *x) {
-    
+
 }
 
 void RebalanceOnDelete(Tree *tree, Node *sibiling) {

@@ -1,0 +1,35 @@
+digraph Tree {
+"d: 666" [color = red]
+"null0" [label = EList]
+"d: 666" -> "null0"
+"d: 666" -> "f: 666"
+"e: 666" [color = red]
+"null1" [label = EList]
+"e: 666" -> "null1"
+"null2" [label = EList]
+"e: 666" -> "null2"
+"f: 666" [color = black]
+"f: 666" -> "e: 666"
+"f: 666" -> "g: 666"
+"g: 666" [color = red]
+"null3" [label = EList]
+"g: 666" -> "null3"
+"null4" [label = EList]
+"g: 666" -> "null4"
+"h: 666" [color = black]
+"h: 666" -> "d: 666"
+"h: 666" -> "j: 666"
+"i: 666" [color = red]
+"null5" [label = EList]
+"i: 666" -> "null5"
+"null6" [label = EList]
+"i: 666" -> "null6"
+"j: 666" [color = black]
+"j: 666" -> "i: 666"
+"j: 666" -> "k: 666"
+"k: 666" [color = red]
+"null7" [label = EList]
+"k: 666" -> "null7"
+"null8" [label = EList]
+"k: 666" -> "null8"
+}

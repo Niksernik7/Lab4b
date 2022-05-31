@@ -1,0 +1,19 @@
+digraph Tree {
+"e: 666" [color = black]
+"null0" [label = EList]
+"e: 666" -> "null0"
+"null1" [label = EList]
+"e: 666" -> "null1"
+"i: 666" [color = black]
+"i: 666" -> "e: 666"
+"i: 666" -> "j: 666"
+"j: 666" [color = black]
+"null2" [label = EList]
+"j: 666" -> "null2"
+"j: 666" -> "k: 666"
+"k: 666" [color = red]
+"null3" [label = EList]
+"k: 666" -> "null3"
+"null4" [label = EList]
+"k: 666" -> "null4"
+}
