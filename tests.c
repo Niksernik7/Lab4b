@@ -110,45 +110,81 @@ void testAdd() {
 
 void testDelete() {
     setupTree();
+
+    // Случаи (какой элемент удаляем):
+    //  1.  Ч, нет потомков     [+]
+    //  2.  К, нет потомков     [+]
+    //  3.  Ч, один Ч потомок   [-]
+    //  4.  Ч, один К потомок   [+]
+    //  5.  К, один Ч потомок   [-]
+    //  6.  Ч, потомки Ч и Ч    [-]
+    //  7.  Ч, потомки Ч и К    [-]
+    //  8.  Ч, потомки К и Ч    [-]
+    //  9.  Ч, потомки К и К    [-]
+    // 10.  К, потомки Ч и Ч    [+]
+    //
+    // Как минимум один из случаев удаляет корень.
+
+    // Случай 2 (2 раза)
+    PrintGV(tree, "a");
     assert(DeleteByKeyAndNumber(tree, "a", 1));
     fillNodes();
     assert(a == NULL);
     assert(b->left == NULL);
     assert(b->parent == d);
+    assert(d->left == b);
+    PrintGV(tree, "c");
     assert(DeleteByKeyAndNumber(tree, "c", 1));
     fillNodes();
     assert(c == NULL);
+    assert(d->left == b);
     assert(b->right == NULL);
     assert(b->parent == d);
 
+    // Случай 1
+    PrintGV(tree, "b");
     assert(DeleteByKeyAndNumber(tree, "b", 1));
     fillNodes();
     assert(b == NULL);
+    assert(tree->root == h);
     assert(h->color == black);
     assert(h->parent == NULL);
-    assert(h->left == d);
+    assert(h->left == f);
     assert(h->right == j);
-    assert(d->color == red);
-    assert(d->parent == h);
-    assert(d->left == NULL);
-    assert(d->right == f);
+    assert(f->color == red);
+    assert(f->parent == h);
+    assert(f->left == d);
+    assert(f->right == g);
     assert(j->color == black);
     assert(j->parent == h);
     assert(j->left == i);
     assert(j->right == k);
-    assert(f->color == black);
-    assert(f->parent == d);
-    assert(f->left == e);
-    assert(f->right == g);
+    assert(d->color == black);
+    assert(d->parent == f);
+    assert(d->left == NULL);
+    assert(d->right == e);
 
-    // red, single child
+    // Случай 4
+    PrintGV(tree, "d");
     assert(DeleteByKeyAndNumber(tree, "d", 1));
     fillNodes();
     assert(d == NULL);
     assert(h->left == f);
+    assert(f->color == red);
     assert(f->parent == h);
-    assert(f->color == black);
+    assert(f->left == e);
+    assert(f->right == g);
+    assert(e->color == black);
+    assert(e->parent == f);
+    assert(e->left == NULL);
+    assert(e->right == NULL);
+    assert(g->color == black);
+    assert(g->parent == f);
+    assert(g->left == NULL);
+    assert(g->right == NULL);
 
+    // Случай 10
+    PrintGV(tree, "f");
     assert(DeleteByKeyAndNumber(tree, "f", 1));
     fillNodes();
     assert(f == NULL);
@@ -162,6 +198,7 @@ void testDelete() {
     assert(grandChild->right == NULL);
     assert(grandChild->parent == h->left);
 
+    PrintGV(tree, "g");
     assert(DeleteByKeyAndNumber(tree, "g", 1));
     fillNodes();
     assert(g == NULL);
@@ -169,6 +206,7 @@ void testDelete() {
     assert(e->color == black);
     assert(e->parent == h);
 
+    PrintGV(tree, "h");
     assert(DeleteByKeyAndNumber(tree, "h", 1));
     fillNodes();
     assert(tree->root == i);
@@ -184,7 +222,10 @@ void testDelete() {
     assert(j->parent == i);
     assert(j->left == NULL);
     assert(j->right == k);
+
+    PrintGV(tree, "i");
     assert(DeleteByKeyAndNumber(tree, "i", 1));
+    PrintGV(tree, "k");
     assert(DeleteByKeyAndNumber(tree, "k", 1));
     fillNodes();
     assert(k == NULL && i == NULL);
@@ -196,7 +237,8 @@ void testDelete() {
     assert(e->parent == j);
     assert(e->left == NULL);
     assert(e->right == NULL);
-    PrintGV(tree);
+
+    PrintGV(tree, NULL);
     FreeTree(tree);
 
 }
